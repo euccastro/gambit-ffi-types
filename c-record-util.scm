@@ -58,9 +58,23 @@
       " = *(" attr-categ " " attr-type ")___arg2_voidstar;")))
 
 (define (take-pointer name)
-  `(define ,(symbol-append name "-pointer")
-     (c-lambda (,name) (pointer ,name)
-       "___result_voidstar = ___arg1_voidstar;")))
+  `(define (,(symbol-append name "-pointer") x)
+     (let ((ret (c-lambda (,name) (pointer ,name)
+                   "___result_voidstar = ___arg1_voidstar;")))
+       (ffi#link! x ret)
+       ret)))
+
+(define (pointer-predicate name)
+  `(define (,(symbol-append name "-pointer?") x)
+     (and (foreign? x) (memq (quote ,name) (foreign-tags x)) #t)))
+
+(define (pointer-dereference name)
+  `(define (,(symbol-append "pointer->" name) x)
+     (let ((ret
+             ((c-lambda (pointer ,name) ,name
+                 "___result_voidstar = ___arg1_voidstar;"))))
+       (ffi#link! x ret)
+       ret)))
 
 ; Internal utility.
 
@@ -127,9 +141,23 @@
          "((struct point*)___arg1_voidstar)->x = *(union coord)___arg2_voidstar;")))
   (test-equal
     (take-pointer 'point)
-    '(define point-pointer
-       (c-lambda (point) (pointer point)
-         "___result_voidstar = ___arg1_voidstar;")))
+    '(define (point-pointer x)
+       (let ((ret (c-lambda (point) (pointer point)
+                    "___result_voidstar = ___arg1_voidstar;")))
+         (ffi#link! x ret)
+         ret)))
+  (test-equal
+    (pointer-predicate 'point)
+    '(define (point-pointer? x)
+       (and (foreign? x) (memq 'point (foreign-tags x)) #t)))
+  (test-equal
+    (pointer-dereference 'point)
+    '(define (pointer->point x)
+       (let ((ret
+               ((c-lambda (pointer point) point
+                 "___result_voidstar = ___arg1_voidstar;"))))
+         (ffi#link! x ret)
+         ret)))
   (println "All OK."))
 
 (test)

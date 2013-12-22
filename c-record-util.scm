@@ -13,7 +13,7 @@
   `(define (,(symbol-append name "?") x)
      (and (foreign? x) (memq (quote ,name) (foreign-tags x)) #t)))
 
-(define (constructor categ name)
+(define (allocator categ name)
   `(define ,(symbol-append "make-" name)
      (c-lambda
        ()
@@ -93,7 +93,7 @@
     '(define (point? x)
        (and (foreign? x) (memq 'point (foreign-tags x)) #t)))
   (test-equal
-    (constructor 'struct 'point)
+    (allocator 'struct 'point)
     '(define make-point
        (c-lambda () point
          "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point));")))

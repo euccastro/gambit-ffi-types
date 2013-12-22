@@ -56,7 +56,8 @@ c-declare-end
              ((c-lambda (,name) ,(unmanaged-name attr-type)
                 ,(string-append*
                     "___result_voidstar = &((" categ " " name
-                    "*)___arg1_voidstar)->" attr-name ";")))))
+                    "*)___arg1_voidstar)->" attr-name ";"))
+              parent)))
        (ffi#link! parent ret)
        ret)))
 
@@ -79,8 +80,9 @@ c-declare-end
 
 (define (take-pointer name)
   `(define (,(symbol-append name "-pointer") x)
-     (let ((ret (c-lambda (,name) (pointer ,name)
-                   "___result_voidstar = ___arg1_voidstar;")))
+     (let ((ret ((c-lambda (,name) (pointer ,name)
+                    "___result_voidstar = ___arg1_voidstar;")
+                 x)))
        (ffi#link! x ret)
        ret)))
 
@@ -92,7 +94,8 @@ c-declare-end
   `(define (,(symbol-append "pointer->" name) x)
      (let ((ret
              ((c-lambda (pointer ,name) ,name
-                 "___result_voidstar = ___arg1_voidstar;"))))
+                 "___result_voidstar = ___arg1_voidstar;")
+              x)))
        (ffi#link! x ret)
        ret)))
 
@@ -102,6 +105,15 @@ c-declare-end
        ,(string-append* "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
                         categ " " name ")) * ___arg1;"))))
 
+(define (pointer-offset categ name)
+  `(define (,(symbol-append name "-pointer-offset") ptr diff)
+     (let ((ret
+             ((c-lambda ((pointer ,name) ptrdiff_t) (pointer ,name)
+                ,(string-append*
+                   "___result_voidstar = (" categ " " name "*)___arg1_voidstar + ___arg2;"))
+              ptr diff)))
+       (ffi#link! ptr ret)
+       ret)))
 
 ; Internal utility.
 
@@ -164,7 +176,8 @@ c-declare-end
     '(define (point-x parent)
        (let ((ret
                ((c-lambda (point) unmanaged-coord
-                "___result_voidstar = &((struct point*)___arg1_voidstar)->x;"))))
+                "___result_voidstar = &((struct point*)___arg1_voidstar)->x;")
+                parent)))
          (ffi#link! parent ret)
          ret)))
   (test-equal
@@ -180,8 +193,9 @@ c-declare-end
   (test-equal
     (take-pointer 'point)
     '(define (point-pointer x)
-       (let ((ret (c-lambda (point) (pointer point)
-                    "___result_voidstar = ___arg1_voidstar;")))
+       (let ((ret ((c-lambda (point) (pointer point)
+                    "___result_voidstar = ___arg1_voidstar;")
+                   x)))
          (ffi#link! x ret)
          ret)))
   (test-equal
@@ -193,7 +207,8 @@ c-declare-end
     '(define (pointer->point x)
        (let ((ret
                ((c-lambda (pointer point) point
-                 "___result_voidstar = ___arg1_voidstar;"))))
+                 "___result_voidstar = ___arg1_voidstar;")
+                x)))
          (ffi#link! x ret)
          ret)))
   (test-equal
@@ -203,6 +218,14 @@ c-declare-end
          (size_t)
          point-array
          "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point)) * ___arg1;")))
+  (test-equal
+    (pointer-offset 'struct 'point)
+    '(define (point-pointer-offset ptr diff)
+       (let ((ret
+               ((c-lambda ((pointer point) ptrdiff_t) (pointer point)
+                  "___result_voidstar = (struct point*)___arg1_voidstar + ___arg2;") ptr diff)))
+         (ffi#link! ptr ret)
+         ret)))
   (println "All OK."))
 
 (test)

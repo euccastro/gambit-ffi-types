@@ -1,6 +1,20 @@
 (namespace ("ffi-util#"))
 (##include "~~/lib/gambit#.scm")
 
+(define array-finalizer-declaration
+  '(c-declare #<<c-declare-end
+#ifndef FFI_DECLARE_FINALIZER
+#define FFI_DECLARE_FINALIZER
+___EXP_FUNC(___SCMOBJ,____ffi_finalize_array)___P((void *ptr),(ptr)
+                                                  void *ptr;)
+{
+    ___EXT(___release_rc)(ptr);
+    return ___FIX(___NO_ERR);
+}
+
+#endif
+c-declare-end
+))
 
 (define (managed-type categ name)
   `(c-define-type
@@ -10,6 +24,10 @@
 (define (unmanaged-type categ name)
   `(c-define-type ,(unmanaged-name name)
      (,categ ,(symbol->string name) ,(tags categ name) "___release_pointer")))
+
+(define (array-type categ name)
+  `(c-define-type ,(symbol-append name "-array")
+     (pointer ,name ,(pointer-tag categ name) "____ffi_release_array")))
 
 (define (predicate name)
   `(define (,(symbol-append name "?") x)
@@ -78,6 +96,13 @@
        (ffi#link! x ret)
        ret)))
 
+(define (array-allocator categ name)
+  `(define ,(symbol-append "make-" name "-array")
+     (c-lambda (size_t) ,(symbol-append name "-array")
+       ,(string-append* "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
+                        categ " " name ")) * ___arg1;"))))
+
+
 ; Internal utility.
 
 (define (*->string x)
@@ -97,7 +122,10 @@
 (define (tags categ name)
   (list (symbol-append categ " " name)
         ; Accept pointers too; they're essentially the same thing.
-        (symbol-append categ " " name "*")))
+        (pointer-tag categ name)))
+
+(define (pointer-tag categ name)
+  (symbol-append categ " " name "*"))
 
 ; Testing.
 
@@ -114,6 +142,9 @@
     '(c-define-type
        unmanaged-point
        (struct "point" (|struct point| |struct point*|) "___release_pointer")))
+  (test-equal
+    (array-type 'struct 'point)
+    '(c-define-type point-array (pointer point |struct point*| "____ffi_release_array")))
   (test-equal
     (predicate 'point)
     '(define (point? x)
@@ -165,6 +196,13 @@
                  "___result_voidstar = ___arg1_voidstar;"))))
          (ffi#link! x ret)
          ret)))
+  (test-equal
+    (array-allocator 'struct 'point)
+    '(define make-point-array
+       (c-lambda
+         (size_t)
+         point-array
+         "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point)) * ___arg1;")))
   (println "All OK."))
 
 (test)

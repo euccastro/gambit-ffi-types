@@ -29,9 +29,10 @@ c-declare-end
   `(c-define-type ,(symbol-append name "-array")
      (pointer ,name ,(pointer-tag categ name) "____ffi_release_array")))
 
-(define (predicate name)
+(define (predicate categ name)
   `(define (,(symbol-append name "?") x)
-     (and (foreign? x) (memq (quote ,name) (foreign-tags x)) #t)))
+     (and (foreign? x) (eq (car (foreign-tags x))
+                           (quote ,(primary-tag categ name))))))
 
 (define (allocator categ name)
   `(define ,(symbol-append "make-" name)
@@ -132,10 +133,11 @@ c-declare-end
   (symbol-append "unmanaged-" name))
 
 (define (tags categ name)
-  (list (symbol-append categ " " name)
+  (list (primary-tag categ name)
         ; Accept pointers too; they're essentially the same thing.
         (pointer-tag categ name)))
-
+(define (primary-tag categ name)
+  (symbol-append categ " " name))
 (define (pointer-tag categ name)
   (symbol-append categ " " name "*"))
 
@@ -158,9 +160,10 @@ c-declare-end
     (array-type 'struct 'point)
     '(c-define-type point-array (pointer point |struct point*| "____ffi_release_array")))
   (test-equal
-    (predicate 'point)
+    (predicate 'struct 'point)
     '(define (point? x)
-       (and (foreign? x) (memq 'point (foreign-tags x)) #t)))
+       (and (foreign? x)
+            (eq (car (foreign-tags x)) '|struct point|))))
   (test-equal
     (allocator 'struct 'point)
     '(define make-point

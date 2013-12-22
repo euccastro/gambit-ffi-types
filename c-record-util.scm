@@ -2,7 +2,7 @@
 (##include "~~/lib/gambit#.scm")
 
 
-(define (type categ name)
+(define (managed-type categ name)
   `(c-define-type ,name (,categ ,(symbol->string name) ,name)))
 
 (define (unmanaged-type categ name)
@@ -30,7 +30,7 @@
        ,(string-append*
           "___result = ((" categ " " name "*)___arg1_voidstar)->" attr-name ";"))))
 
-(define (void*-accessor categ name attr-type attr-name)
+(define (type-accessor categ name attr-type attr-name)
   `(define (,(symbol-append name "-" attr-name) parent)
      (let ((ret
              ((c-lambda (,name) ,(unmanaged-name attr-type)
@@ -40,12 +40,22 @@
        (ffi#link! parent ret)
        ret)))
 
-(define (primitive-mutator categ name attr-type attr-name)
+(define (mutator name attr-type attr-name c-lambda-body)
   `(define ,(symbol-append name "-" attr-name "-set!")
      (c-lambda (,name ,attr-type) void
-       ,(string-append*
-          "((" categ " " name "*)___arg1_voidstar)->" attr-name
-          " = ___arg2;"))))
+       ,c-lambda-body)))
+
+(define (primitive-mutator categ name attr-type attr-name)
+  (mutator name attr-type attr-name
+    (string-append*
+      "((" categ " " name "*)___arg1_voidstar)->" attr-name
+      " = ___arg2;")))
+
+(define (type-mutator categ name attr-categ attr-type attr-name)
+  (mutator name attr-type attr-name
+    (string-append*
+      "((" categ " " name "*)___arg1_voidstar)->" attr-name
+      " = *(" attr-categ " " attr-type ")___arg2_voidstar;")))
 
 ; Internal utility.
 
@@ -71,7 +81,7 @@
 
 (define (test)
   (test-equal
-    (type 'struct 'point)
+    (managed-type 'struct 'point)
     '(c-define-type point (struct "point" point)))
   (test-equal
     (unmanaged-type 'struct 'point)
@@ -93,7 +103,7 @@
        (c-lambda (point) int
          "___result = ((struct point*)___arg1_voidstar)->x;")))
   (test-equal
-    (void*-accessor 'struct 'point 'coord 'x)
+    (type-accessor 'struct 'point 'coord 'x)
     '(define (point-x parent)
        (let ((ret
                ((c-lambda (point) unmanaged-coord
@@ -105,6 +115,11 @@
     '(define point-x-set!
        (c-lambda (point int) void
          "((struct point*)___arg1_voidstar)->x = ___arg2;")))
+  (test-equal
+    (type-mutator 'struct 'point 'union 'coord 'x)
+    '(define point-x-set!
+       (c-lambda (point coord) void
+         "((struct point*)___arg1_voidstar)->x = *(union coord)___arg2_voidstar;")))
   (println "All OK."))
 
 (test)

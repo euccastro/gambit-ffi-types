@@ -3,11 +3,13 @@
 
 
 (define (managed-type categ name)
-  `(c-define-type ,name (,categ ,(symbol->string name) ,name)))
+  `(c-define-type
+     ,name
+     (,categ ,(symbol->string name) ,(tags categ name))))
 
 (define (unmanaged-type categ name)
   `(c-define-type ,(unmanaged-name name)
-     (,categ ,(symbol->string name) ,name "___RELEASE_POINTER")))
+     (,categ ,(symbol->string name) ,(tags categ name) "___release_pointer")))
 
 (define (predicate name)
   `(define (,(symbol-append name "?") x)
@@ -92,6 +94,11 @@
 (define (unmanaged-name name)
   (symbol-append "unmanaged-" name))
 
+(define (tags categ name)
+  (list (symbol-append categ " " name)
+        ; Accept pointers too; they're essentially the same thing.
+        (symbol-append categ " " name "*")))
+
 ; Testing.
 
 (define (test-equal actual expected)
@@ -101,12 +108,12 @@
 (define (test)
   (test-equal
     (managed-type 'struct 'point)
-    '(c-define-type point (struct "point" point)))
+    '(c-define-type point (struct "point" (|struct point| |struct point*|))))
   (test-equal
     (unmanaged-type 'struct 'point)
     '(c-define-type
        unmanaged-point
-       (struct "point" point "___RELEASE_POINTER")))
+       (struct "point" (|struct point| |struct point*|) "___release_pointer")))
   (test-equal
     (predicate 'point)
     '(define (point? x)

@@ -57,6 +57,11 @@
       "((" categ " " name "*)___arg1_voidstar)->" attr-name
       " = *(" attr-categ " " attr-type ")___arg2_voidstar;")))
 
+(define (take-pointer name)
+  `(define ,(symbol-append name "-pointer")
+     (c-lambda (,name) (pointer ,name)
+       "___result_voidstar = ___arg1_voidstar;")))
+
 ; Internal utility.
 
 (define (*->string x)
@@ -120,6 +125,11 @@
     '(define point-x-set!
        (c-lambda (point coord) void
          "((struct point*)___arg1_voidstar)->x = *(union coord)___arg2_voidstar;")))
+  (test-equal
+    (take-pointer 'point)
+    '(define point-pointer
+       (c-lambda (point) (pointer point)
+         "___result_voidstar = ___arg1_voidstar;")))
   (println "All OK."))
 
 (test)

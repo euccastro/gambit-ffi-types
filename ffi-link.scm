@@ -1,7 +1,7 @@
 (namespace ("ffi#"))
 (##include "~~/lib/gambit#.scm")
 
-(define link
+(define link!
   (let ((references (make-table
                       weak-keys: #t
                       weak-values: #f

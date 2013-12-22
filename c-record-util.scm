@@ -22,14 +22,23 @@
           "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
           categ " " name "));"))))
 
-(define (primitive-accessor categ name attr-name attr-type)
+(define (primitive-accessor categ name attr-type attr-name)
   `(define ,(symbol-append name "-" attr-name)
      (c-lambda
        (,name)
        ,attr-type
        ,(string-append*
-          "___result = ((" categ " " name "*)___arg1_voidstar)->"
-          attr-name ";"))))
+          "___result = ((" categ " " name "*)___arg1_voidstar)->" attr-name ";"))))
+
+(define (void*-accessor categ name attr-type attr-name)
+  `(define (,(symbol-append name "-" attr-name) parent)
+     (let ((ret
+             ((c-lambda (,name) ,(unmanaged-name attr-type)
+                ,(string-append*
+                    "___result_voidstar = &((" categ " " name
+                    "*)___arg1_voidstar)->" attr-name ";")))))
+       (ffi#link! parent ret)
+       ret)))
 
 ; Internal utility.
 
@@ -72,10 +81,18 @@
        (c-lambda () point
          "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point));")))
   (test-equal
-    (primitive-accessor 'struct 'point 'x 'int)
+    (primitive-accessor 'struct 'point 'int 'x)
     '(define point-x
        (c-lambda (point) int
          "___result = ((struct point*)___arg1_voidstar)->x;")))
+  (test-equal
+    (void*-accessor 'struct 'point 'coord 'x)
+    '(define (point-x parent)
+       (let ((ret
+               ((c-lambda (point) unmanaged-coord
+                "___result_voidstar = &((struct point*)___arg1_voidstar)->x;"))))
+         (ffi#link! parent ret)
+         ret)))
   (println "All OK."))
 
 (test)

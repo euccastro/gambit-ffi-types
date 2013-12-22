@@ -40,6 +40,13 @@
        (ffi#link! parent ret)
        ret)))
 
+(define (primitive-mutator categ name attr-type attr-name)
+  `(define ,(symbol-append name "-" attr-name "-set!")
+     (c-lambda (,name ,attr-type) void
+       ,(string-append*
+          "((" categ " " name "*)___arg1_voidstar)->" attr-name
+          " = ___arg2;"))))
+
 ; Internal utility.
 
 (define (*->string x)
@@ -93,6 +100,11 @@
                 "___result_voidstar = &((struct point*)___arg1_voidstar)->x;"))))
          (ffi#link! parent ret)
          ret)))
+  (test-equal
+    (primitive-mutator 'struct 'point 'int 'x)
+    '(define point-x-set!
+       (c-lambda (point int) void
+         "((struct point*)___arg1_voidstar)->x = ___arg2;")))
   (println "All OK."))
 
 (test)

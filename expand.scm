@@ -1,20 +1,6 @@
-(namespace ("ffi-util#"))
+(##namespace ("ffi-util#"))
 (##include "~~/lib/gambit#.scm")
 
-(define array-finalizer-declaration
-  '(c-declare #<<c-declare-end
-#ifndef FFI_DECLARE_FINALIZER
-#define FFI_DECLARE_FINALIZER
-___EXP_FUNC(___SCMOBJ,____ffi_finalize_array)___P((void *ptr),(ptr)
-                                                  void *ptr;)
-{
-    ___EXT(___release_rc)(ptr);
-    return ___FIX(___NO_ERR);
-}
-
-#endif
-c-declare-end
-))
 
 (define (managed-type categ name)
   `(c-define-type
@@ -27,11 +13,11 @@ c-declare-end
 
 (define (array-type categ name)
   `(c-define-type ,(symbol-append name "-array")
-     (pointer ,name ,(pointer-tag categ name) "____ffi_release_array")))
+     (pointer ,name ,(pointer-tag categ name) "____ffi_finalize_array")))
 
 (define (predicate categ name)
   `(define (,(symbol-append name "?") x)
-     (and (foreign? x) (eq (car (foreign-tags x))
+     (and (foreign? x) (eq? (car (foreign-tags x))
                            (quote ,(primary-tag categ name))))))
 
 (define (allocator categ name)
@@ -90,7 +76,7 @@ c-declare-end
 (define (pointer-predicate categ name)
   `(define (,(symbol-append name "-pointer?") x)
      (and (foreign? x)
-          (eq (car (foreign-tags x))
+          (eq? (car (foreign-tags x))
               (quote ,(pointer-tag categ name))))))
 
 (define (pointer-dereference categ name)

@@ -21,13 +21,13 @@
 
   (test-equal
     (array-type 'struct 'point)
-    '(c-define-type point-array (pointer point |struct point*| "____ffi_release_array")))
+    '(c-define-type point-array (pointer point |struct point*| "____ffi_finalize_array")))
 
   (test-equal
     (predicate 'struct 'point)
     '(define (point? x)
        (and (foreign? x)
-            (eq (car (foreign-tags x)) '|struct point|))))
+            (eq? (car (foreign-tags x)) '|struct point|))))
 
   (test-equal
     (allocator 'struct 'point)
@@ -75,7 +75,7 @@
   (test-equal
     (pointer-predicate 'struct 'point)
     '(define (point-pointer? x)
-       (and (foreign? x) (eq (car (foreign-tags x)) '|struct point*|))))
+       (and (foreign? x) (eq? (car (foreign-tags x)) '|struct point*|))))
 
   (test-equal
     (pointer-dereference 'struct 'point)
@@ -114,10 +114,10 @@
                  "___release_pointer"))
        (c-define-type
          salad-array
-         (pointer salad |struct salad*| "____ffi_release_array"))
+         (pointer salad |struct salad*| "____ffi_finalize_array"))
        (define (salad? x)
          (and (foreign? x)
-              (eq (car (foreign-tags x)) '|struct salad|)))
+              (eq? (car (foreign-tags x)) '|struct salad|)))
        (define make-salad
          (c-lambda () salad
            "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct salad));"))
@@ -133,7 +133,7 @@
            (ffi#link! x ret)
            ret))
        (define (salad-pointer? x)
-         (and (foreign? x) (eq (car (foreign-tags x))
+         (and (foreign? x) (eq? (car (foreign-tags x))
                                '|struct salad*|)))
        (define (pointer->salad x)
          (let ((ret

@@ -81,7 +81,7 @@
     (pointer-dereference 'struct 'point)
     '(define (pointer->point x)
        (let ((ret
-               ((c-lambda (pointer point) point
+               ((c-lambda ((pointer point)) point
                  "___result_voidstar = ___arg1_voidstar;")
                 x)))
          (ffi#link! x ret)
@@ -137,7 +137,7 @@
                                '|struct salad*|)))
        (define (pointer->salad x)
          (let ((ret
-                 ((c-lambda (pointer salad) salad
+                 ((c-lambda ((pointer salad)) salad
                             "___result_voidstar = ___arg1_voidstar;")
                   x)))
            (ffi#link! x ret)

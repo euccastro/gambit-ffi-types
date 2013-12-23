@@ -96,7 +96,7 @@ c-declare-end
 (define (pointer-dereference categ name)
   `(define (,(symbol-append "pointer->" name) x)
      (let ((ret
-             ((c-lambda (pointer ,name) ,name
+             ((c-lambda ((pointer ,name)) ,name
                  "___result_voidstar = ___arg1_voidstar;")
               x)))
        (ffi#link! x ret)

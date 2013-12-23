@@ -93,7 +93,7 @@
        (c-lambda
          (size_t)
          point-array
-         "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point)) * ___arg1;")))
+         "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point) * ___arg1);")))
 
   (test-equal
     (pointer-offset 'struct 'point)
@@ -125,7 +125,7 @@
          (c-lambda
            (size_t)
            salad-array
-           "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct salad)) * ___arg1;"))
+           "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct salad) * ___arg1);"))
        (define (salad-pointer x)
          (let ((ret ((c-lambda (salad) (pointer salad)
                                "___result_voidstar = ___arg1_voidstar;")

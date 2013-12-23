@@ -106,7 +106,7 @@ c-declare-end
   `(define ,(symbol-append "make-" name "-array")
      (c-lambda (size_t) ,(symbol-append name "-array")
        ,(string-append* "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
-                        categ " " name ")) * ___arg1;"))))
+                        categ " " name ") * ___arg1);"))))
 
 (define (pointer-offset categ name)
   `(define (,(symbol-append name "-pointer-offset") ptr diff)

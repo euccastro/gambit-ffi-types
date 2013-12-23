@@ -87,9 +87,11 @@ c-declare-end
        (ffi#link! x ret)
        ret)))
 
-(define (pointer-predicate name)
+(define (pointer-predicate categ name)
   `(define (,(symbol-append name "-pointer?") x)
-     (and (foreign? x) (memq (quote ,name) (foreign-tags x)) #t)))
+     (and (foreign? x)
+          (eq (car (foreign-tags x))
+              (quote ,(pointer-tag categ name))))))
 
 (define (pointer-dereference name)
   `(define (,(symbol-append "pointer->" name) x)
@@ -202,9 +204,9 @@ c-declare-end
          (ffi#link! x ret)
          ret)))
   (test-equal
-    (pointer-predicate 'point)
+    (pointer-predicate 'struct 'point)
     '(define (point-pointer? x)
-       (and (foreign? x) (memq 'point (foreign-tags x)) #t)))
+       (and (foreign? x) (eq (car (foreign-tags x)) '|struct point*|))))
   (test-equal
     (pointer-dereference 'point)
     '(define (pointer->point x)

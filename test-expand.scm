@@ -1,4 +1,4 @@
-(load "c-record-util")
+(load "expand")
 
 (namespace ("ffi-util#"))
 (##include "~~/lib/gambit#.scm")

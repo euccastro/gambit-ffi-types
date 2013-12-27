@@ -1,33 +1,33 @@
-(##namespace ("ffi-util#"))
-(##include "~~/lib/gambit#.scm")
+;XXX: namespaces.
 
-
-(define (managed-type categ name)
+(define (root-type categ name)
   `(c-define-type
      ,name
      (,categ ,(symbol->string name) ,(tags categ name))))
 
-(define (unmanaged-type categ name)
-  `(c-define-type ,(unmanaged-name name)
-     (,categ ,(symbol->string name) ,(tags categ name) "___release_pointer")))
-
-(define (array-type categ name)
-  `(c-define-type ,(symbol-append name "-array")
-     (pointer ,name ,(pointer-tag categ name) "____ffi_finalize_array")))
+(define (dependent-type categ name)
+  `(c-define-type ,(dependent-name name)
+     ,(c-pointer-tag categ name)
+     "DEPPOINTER_TO_SCMOBJ"
+     "SCMOBJ_TO_DEPPOINTER"
+     #f))
 
 (define (predicate categ name)
   `(define (,(symbol-append name "?") x)
-     (and (foreign? x) (eq? (car (foreign-tags x))
-                           (quote ,(primary-tag categ name))))))
+     (and (foreign? x)
+          (memq
+            (car (foreign-tags x))
+            ',(tags categ name))
+          #t)))
 
 (define (allocator categ name)
   `(define ,(symbol-append "make-" name)
      (c-lambda
        ()
        ,name
-       ,(string-append*
+       ,(string-append
           "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
-          categ " " name "));"))))
+          (c-tag categ name) "));"))))
 
 (define (primitive-accessor categ name attr-type attr-name)
   `(define ,(symbol-append name "-" attr-name)
@@ -35,17 +35,20 @@
        (,name)
        ,attr-type
        ,(string-append*
-          "___result = ((" categ " " name "*)___arg1_voidstar)->" attr-name ";"))))
+          "___result = ((" (c-pointer-tag categ name) ")___arg1_voidstar)->"
+          attr-name ";"))))
 
-(define (type-accessor categ name attr-categ attr-type attr-name)
+(define (dependent-accessor categ name attr-categ attr-type attr-name)
   `(define (,(symbol-append name "-" attr-name) parent)
      (let ((ret
-             ((c-lambda (,name) ,(unmanaged-name attr-type)
+             ((c-lambda (,name) ,(dependent-name attr-type)
                 ,(string-append*
-                    "___result_voidstar = &((" categ " " name
-                    "*)___arg1_voidstar)->" attr-name ";"))
+                    "___result_voidstar = &((" (c-pointer-tag categ name)
+                    ")___arg1_voidstar)->" attr-name ";"))
               parent)))
-       (ffi#link! parent ret)
+       ; XXX: namespaces, and enable ##register-foreign-dependency! in
+       ;      production for performance.
+       (register-foreign-dependency! ret parent)
        ret)))
 
 (define (mutator name attr-type attr-name c-lambda-body)
@@ -59,7 +62,7 @@
       "((" categ " " name "*)___arg1_voidstar)->" attr-name
       " = ___arg2;")))
 
-(define (type-mutator categ name attr-categ attr-type attr-name)
+(define (dependent-mutator categ name attr-categ attr-type attr-name)
   (mutator name attr-type attr-name
     (string-append*
       "((" categ " " name "*)___arg1_voidstar)->" attr-name
@@ -71,37 +74,6 @@
                     "___result_voidstar = ___arg1_voidstar;")
                  x)))
        (ffi#link! x ret)
-       ret)))
-
-(define (pointer-predicate categ name)
-  `(define (,(symbol-append name "-pointer?") x)
-     (and (foreign? x)
-          (eq? (car (foreign-tags x))
-              (quote ,(pointer-tag categ name))))))
-
-(define (pointer-dereference categ name)
-  `(define (,(symbol-append "pointer->" name) x)
-     (let ((ret
-             ((c-lambda ((pointer ,name)) ,name
-                 "___result_voidstar = ___arg1_voidstar;")
-              x)))
-       (ffi#link! x ret)
-       ret)))
-
-(define (array-allocator categ name)
-  `(define ,(symbol-append "make-" name "-array")
-     (c-lambda (size_t) ,(symbol-append name "-array")
-       ,(string-append* "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
-                        categ " " name ") * ___arg1);"))))
-
-(define (pointer-offset categ name)
-  `(define (,(symbol-append name "-pointer-offset") ptr diff)
-     (let ((ret
-             ((c-lambda ((pointer ,name) ptrdiff_t) (pointer ,name)
-                ,(string-append*
-                   "___result_voidstar = (" categ " " name "*)___arg1_voidstar + ___arg2;"))
-              ptr diff)))
-       (ffi#link! ptr ret)
        ret)))
 
 (define (struct . args)
@@ -124,18 +96,12 @@
   (append
     '(begin)
     (map (lambda (fn) (fn categ name))
-         (list managed-type
-               unmanaged-type
-               array-type
+         (list root-type
+               dependent-type
                predicate
-               allocator
-               array-allocator
-               pointer-cast
-               pointer-predicate
-               pointer-dereference
-               pointer-offset))
-    (map-fields primitive-accessor type-accessor)
-    (map-fields primitive-mutator type-mutator)))
+               allocator))
+    (map-fields primitive-accessor dependent-accessor)
+    (map-fields primitive-mutator dependent-mutator)))
 
 ; Internal utility.
 
@@ -150,15 +116,24 @@
 (define (symbol-append . args)
   (string->symbol (apply string-append* args)))
 
-(define (unmanaged-name name)
-  (symbol-append "unmanaged-" name))
+(define (dependent-name name)
+  (symbol-append "dependent-" name))
 
 (define (tags categ name)
-  (list (primary-tag categ name)
+  (list (c-tag-symbol categ name)
         ; Accept pointers too; they're essentially the same thing.
-        (pointer-tag categ name)))
-(define (primary-tag categ name)
-  (symbol-append categ " " name))
-(define (pointer-tag categ name)
-  (symbol-append categ " " name "*"))
+        (c-pointer-tag-symbol categ name)))
 
+(define (c-tag categ name)
+  (if (eq? categ 'type)
+    (symbol->string name)
+    (string-append* categ " " name)))
+
+(define (c-pointer-tag categ name)
+  (string-append (c-tag categ name) "*"))
+
+(define (c-tag-symbol categ name)
+  (string->symbol (c-tag categ name)))
+
+(define (c-pointer-tag-symbol categ name)
+  (string->symbol (c-pointer-tag categ name)))

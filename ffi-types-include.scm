@@ -1,10 +1,19 @@
-(##include "expand#.scm")
+(c-declare #<<c-declare-end
+#ifndef FFI_INCLUDED
+#define FFI_INCLUDED
+
+// C hacks here
+
+#endif
+c-declare-end
+)
 
 (define-macro (at-expand-time . expr) (eval `(begin ,@expr)))
 
+(at-expand-time
+  (include "expand.scm"))
+
 (define-macro (c-native categ name . fields)
-              (at-expand-time
-                (##include "expand.scm"))
               (apply (eval categ) name fields))
 
 (define-macro (c-struct . etc)
@@ -13,18 +22,3 @@
 (define-macro (c-union . etc)
   `(c-native union ,@etc))
 
-(c-declare #<<c-declare-end
-
-#ifndef FFI_DECLARE_FINALIZER
-#define FFI_DECLARE_FINALIZER
-
-___EXP_FUNC(___SCMOBJ,____ffi_finalize_array)___P((void *ptr),(ptr)
-                                                  void *ptr;)
-{
-    ___EXT(___release_rc)(ptr);
-    return ___FIX(___NO_ERR);
-}
-
-#endif
-c-declare-end
-)

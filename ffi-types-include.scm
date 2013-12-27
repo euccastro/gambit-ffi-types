@@ -8,17 +8,19 @@
 c-declare-end
 )
 
-(define-macro (at-expand-time . expr) (eval `(begin ,@expr)))
+(define-macro (ffi-types#at-expand-time . expr) (eval `(begin ,@expr)))
 
-(at-expand-time
+(ffi-types#at-expand-time
   (include "expand.scm"))
 
-(define-macro (c-native categ name . fields)
+(define-macro (ffi-types#c-native categ name . fields)
               (apply (eval categ) name fields))
 
 (define-macro (c-struct . etc)
-  `(c-native struct ,@etc))
+  `(ffi-types#c-native struct ,@etc))
 
 (define-macro (c-union . etc)
-  `(c-native union ,@etc))
+  `(ffi-types#c-native union ,@etc))
 
+(define-macro (c-type . etc)
+  `(ffi-types#c-native type ,@etc))

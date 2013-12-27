@@ -57,14 +57,14 @@
 (define (primitive-mutator categ name attr-type attr-name)
   (mutator name attr-type attr-name
     (string-append*
-      "((" categ " " name "*)___arg1_voidstar)->" attr-name
+      "((" (c-pointer-tag categ name) ")___arg1_voidstar)->" attr-name
       " = ___arg2;")))
 
 (define (dependent-mutator categ name attr-categ attr-type attr-name)
   (mutator name attr-type attr-name
     (string-append*
-      "((" categ " " name "*)___arg1_voidstar)->" attr-name
-      " = *(" attr-categ " " attr-type ")___arg2_voidstar;")))
+      "((" (c-pointer-tag categ name) ")___arg1_voidstar)->" attr-name
+      " = *(" (c-pointer-tag attr-categ attr-type) ")___arg2_voidstar;")))
 
 (define (pointer-cast categ name)
   `(define (,(symbol-append name "-pointer") x)

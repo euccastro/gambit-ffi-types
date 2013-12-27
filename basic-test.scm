@@ -9,4 +9,4 @@
 (point-x-set! p 7)
 (point-y-set! p 8)
 
-(println "Got point (" (point-x p) ", " (point-y p) ").")
+(test-equal '(7 8) (list (point-x p) (point-y p)))

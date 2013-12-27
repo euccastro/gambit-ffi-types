@@ -1,5 +1,3 @@
-;XXX: namespaces.
-
 (define (root-type categ name)
   `(c-define-type
      ,name

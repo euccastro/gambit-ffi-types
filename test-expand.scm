@@ -1,15 +1,5 @@
 (load "expand")
-
-(define (test-equal actual expected)
-  (if (not (equal? actual expected))
-    (begin
-      (println "expected:")
-      (write expected)
-      (newline)
-      (println "actual:")
-      (write actual)
-      (newline)
-      (error 'test-equal-mismatch))))
+(load "test-lib")
 
 (define (test)
 
@@ -99,8 +89,6 @@
            "((struct salad*)___arg1_voidstar)->n_tomatoes = ___arg2;"))
        (define salad-dressing-set!
          (c-lambda (salad dressing) void
-           "((struct salad*)___arg1_voidstar)->dressing = *(union dressing)___arg2_voidstar;"))))
-
-  (println "All OK."))
+           "((struct salad*)___arg1_voidstar)->dressing = *(union dressing)___arg2_voidstar;")))))
 
 (test)

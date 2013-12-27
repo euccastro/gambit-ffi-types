@@ -2,4 +2,5 @@
 *.swo
 *.c
 *.o
+test-scheme-object-size-in-words
 

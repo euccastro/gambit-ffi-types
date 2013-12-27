@@ -46,9 +46,9 @@
                     "___result_voidstar = &((" (c-pointer-tag categ name)
                     ")___arg1_voidstar)->" attr-name ";"))
               parent)))
-       ; XXX: namespaces, and enable ##register-foreign-dependency! in
-       ;      production for performance.
-       (register-foreign-dependency! ret parent)
+       ; XXX: enable ##register-foreign-dependency! in production, for
+       ;      performance.
+       (ffi-types-lib#register-foreign-dependency! ret parent)
        ret)))
 
 (define (mutator name attr-type attr-name c-lambda-body)

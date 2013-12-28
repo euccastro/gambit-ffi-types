@@ -2,6 +2,6 @@
 *.swo
 *.c
 *.o
-basic-test
+integration-test
 test-scheme-object-size-in-words
 

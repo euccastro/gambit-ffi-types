@@ -18,6 +18,13 @@
        #f))
 
   (test-equal
+    (release-function 'struct 'point)
+    '(define ffi-types-impl#struct-point-release-fn
+       ((c-lambda (scheme-object) (pointer void)
+          "___SCMOBJ ret = ___FIELD(___arg1,___FOREIGN_RELEASE_FN);\n        ___result_voidstar = (void*)ret;")
+        ((c-lambda () point "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point));")))))
+
+  (test-equal
     (predicate 'struct 'point)
     '(define (point? x)
        (and (foreign? x)
@@ -26,9 +33,14 @@
 
   (test-equal
     (allocator 'struct 'point)
-    '(define make-point
-       (c-lambda () point
-         "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point));")))
+    '(define (make-point)
+       (let ((ret ((c-lambda () dependent-point
+                     "___result = ___EXT(___alloc_rc)(sizeof(struct point));"))))
+         ((c-lambda (scheme-object (pointer void)) void
+            "___FIELD(___arg1,___FOREIGN_RELEASE_FN) = ___CAST(___SCMOBJ,___arg2_voidstar);")
+          ret
+          ffi-types-impl#struct-point-release-fn)
+         ret)))
 
   (test-equal
     (primitive-accessor 'struct 'point 'int 'x)
@@ -68,13 +80,23 @@
          "DEPPOINTER_TO_SCMOBJ"
          "SCMOBJ_TO_DEPPOINTER"
          #f)
+       (define ffi-types-impl#struct-salad-release-fn
+         ((c-lambda (scheme-object) (pointer void)
+            "___SCMOBJ ret = ___FIELD(___arg1,___FOREIGN_RELEASE_FN);\n        ___result_voidstar = (void*)ret;")
+          ((c-lambda () salad
+             "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct salad));"))))
        (define (salad? x)
          (and (foreign? x)
               (memq (car (foreign-tags x)) '(|struct salad| |struct salad*|))
               #t))
-       (define make-salad
-         (c-lambda () salad
-           "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct salad));"))
+       (define (make-salad)
+         (let ((ret ((c-lambda () dependent-salad
+                       "___result = ___EXT(___alloc_rc)(sizeof(struct salad));"))))
+           ((c-lambda (scheme-object (pointer void)) void
+              "___FIELD(___arg1,___FOREIGN_RELEASE_FN) = ___CAST(___SCMOBJ,___arg2_voidstar);")
+            ret
+            ffi-types-impl#struct-salad-release-fn)
+           ret))
        (define salad-n_tomatoes
          (c-lambda (salad) int
            "___result = ((struct salad*)___arg1_voidstar)->n_tomatoes;"))
@@ -99,13 +121,23 @@
        (c-define-type test (type "test" (test test*)))
        (c-define-type dependent-test
          "test*" "DEPPOINTER_TO_SCMOBJ" "SCMOBJ_TO_DEPPOINTER" #f)
+       (define ffi-types-impl#type-test-release-fn
+         ((c-lambda (scheme-object) (pointer void)
+            "___SCMOBJ ret = ___FIELD(___arg1,___FOREIGN_RELEASE_FN);\n        ___result_voidstar = (void*)ret;")
+          ((c-lambda () test
+             "___result_voidstar = ___EXT(___alloc_rc)(sizeof(test));"))))
        (define (test? x)
          (and (foreign? x)
               (memq (car (foreign-tags x)) '(test test*))
               #t))
-       (define make-test
-         (c-lambda () test
-            "___result_voidstar = ___EXT(___alloc_rc)(sizeof(test));"))
+       (define (make-test)
+         (let ((ret ((c-lambda () dependent-test
+                       "___result = ___EXT(___alloc_rc)(sizeof(test));"))))
+           ((c-lambda (scheme-object (pointer void)) void
+              "___FIELD(___arg1,___FOREIGN_RELEASE_FN) = ___CAST(___SCMOBJ,___arg2_voidstar);")
+            ret
+            ffi-types-impl#type-test-release-fn)
+           ret))
        (define test-x
          (c-lambda (test) int
            "___result = ((test*)___arg1_voidstar)->x;"))

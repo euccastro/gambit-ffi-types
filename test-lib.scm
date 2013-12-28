@@ -7,4 +7,5 @@
       (println "actual:")
       (write actual)
       (newline)
-      (error 'test-equal-mismatch))))
+      (error 'test-equal-failure))))
+

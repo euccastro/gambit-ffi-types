@@ -1,8 +1,4 @@
-(##namespace ("ffi-types-lib#"))
-(##include "~~/lib/gambit#.scm")
-(##include "ffi-types-lib#.scm")
-
-(define (register-foreign-dependency! dependent obj)
+(define (ffi-types#register-foreign-dependency! dependent obj)
   (cond
     ((not (foreign? dependent))
      (error `("Not a foreign object: " ,dependent)))

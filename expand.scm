@@ -46,7 +46,7 @@
               parent)))
        ; XXX: enable ##register-foreign-dependency! in production, for
        ;      performance.
-       (ffi-types-lib#register-foreign-dependency! ret parent)
+       (ffi-types#register-foreign-dependency! ret parent)
        ret)))
 
 (define (mutator name attr-type attr-name c-lambda-body)

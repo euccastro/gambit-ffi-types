@@ -43,7 +43,7 @@
                ((c-lambda (point) dependent-coord
                 "___result = &((struct point*)___arg1_voidstar)->x;")
                 parent)))
-         (ffi-types-lib#register-foreign-dependency! ret parent)
+         (ffi-types#register-foreign-dependency! ret parent)
          ret)))
 
   (test-equal
@@ -83,7 +83,7 @@
                  ((c-lambda (salad) dependent-dressing
                             "___result = &((struct salad*)___arg1_voidstar)->dressing;")
                   parent)))
-           (ffi-types-lib#register-foreign-dependency! ret parent)
+           (ffi-types#register-foreign-dependency! ret parent)
            ret))
        (define salad-n_tomatoes-set!
          (c-lambda (salad int) void
@@ -114,7 +114,7 @@
                  ((c-lambda (test) dependent-something_else
                     "___result = &((test*)___arg1_voidstar)->y;")
                   parent)))
-           (ffi-types-lib#register-foreign-dependency! ret parent)
+           (ffi-types#register-foreign-dependency! ret parent)
            ret))
        (define test-x-set!
          (c-lambda (test int) void

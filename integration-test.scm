@@ -12,6 +12,11 @@ typedef struct {
     point q;
 } segment;
 
+typedef struct {
+    segment s;
+    segment r;
+} segment_pair;  /* duh */
+
 /* Utility for lifecycle debugging. */
 
 int is_still_address(unsigned long address) {
@@ -30,6 +35,11 @@ c-declare-end
 
 (define (address-dead? a)
   (not ((c-lambda (unsigned-long) bool "is_still_address") a)))
+
+(define (many-gcs)
+  (let loop ((i 100))
+    (##gc)
+    (if (> i 0) (loop (- i 1)))))
 
 
 ; Basic struct with primitive accessors and mutators.
@@ -81,6 +91,7 @@ c-declare-end
   (##gc)
   (test-true (address-dead? a)))
 
+
 ; Basic contained structure.
 
 (c-type segment
@@ -107,3 +118,54 @@ c-declare-end
   (##gc)
   (test-true (address-dead? a)))
 
+
+; Root with two direct dependents and one transitive one.  The only new thing
+; to test here is lifecycle management.
+
+(c-type segment_pair
+  (type segment s)
+  (type segment r))
+
+(define (remove l e)
+  (cond
+    ((null? l) '())
+    ((eqv? (car l) e)
+     (cdr l))
+    (else
+      (cons (car l) (remove (cdr l) e)))))
+
+(define (mappend fn l)
+  (if (null? l)
+    '()
+    (append (fn (car l)) (mappend fn (cdr l)))))
+
+(define (permutations l)
+  (cond ((null? l) '())
+        ((null? (cdr l)) (list l))
+        (else
+          (mappend
+            (lambda (e)
+              (map (lambda (perm) (cons e perm))
+                   (permutations (remove l e))))
+            l))))
+
+; No matter in what order we release the direct or transitive references,
+; only the last deletion gets the root reclaimed.
+(let ((v (make-vector 4))
+      (a #f))
+  (for-each
+    (lambda (permutation)
+      (vector-set! v 0 (make-segment_pair))
+      (set! a (foreign-address (vector-ref v 0)))
+      (vector-set! v 1 (segment_pair-r (vector-ref v 0)))
+      (vector-set! v 2 (segment_pair-s (vector-ref v 0)))
+      (vector-set! v 3 (segment-q (vector-ref v 2)))
+      (for-each
+        (lambda (i)
+          (##gc)
+          (test-false (address-dead? a))
+          (vector-set! v i #f))
+        permutation)
+      (##gc)
+      (test-true (address-dead? a)))
+    (permutations '(0 1 2 3))))

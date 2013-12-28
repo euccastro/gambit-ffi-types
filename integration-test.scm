@@ -3,7 +3,6 @@
 
 (c-declare #<<c-declare-end
 
-
 struct point_s { int x; int y; };
 union point_u { int x; int y; };
 typedef struct { int x; int y; } point;
@@ -13,8 +12,7 @@ typedef struct {
     point q;
 } segment;
 
-
-/* Utilities for lifecycle debugging. */
+/* Utility for lifecycle debugging. */
 
 int is_still_address(unsigned long address) {
     ___rc_header *start, *current;
@@ -32,6 +30,7 @@ c-declare-end
 
 (define (address-dead? a)
   (not ((c-lambda (unsigned-long) bool "is_still_address") a)))
+
 
 ; Basic struct with primitive accessors and mutators.
 
@@ -95,7 +94,10 @@ c-declare-end
        (oa (foreign-address other-point)))
   (point-x-set! p 0)
   (point-x-set! other-point 6)
+  (test-equal (point-x p) 0)
   (segment-p-set! s other-point)
+  (test-equal (point-x p) 6 "copy by value")
+  (point-x-set! other-point 7)
   (test-equal (point-x p) 6 "copy by value")
   (test-false (address-dead? a))
   (set! s #f)

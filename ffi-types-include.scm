@@ -1,14 +1,3 @@
-(c-declare #<<c-declare-end
-#ifndef FFI_INCLUDED
-#define FFI_INCLUDED
-
-// C hacks here
-
-#endif
-c-declare-end
-)
-
-
 (define-macro (ffi-types#c-native categ name . fields)
   (eval '(begin (##include "expand.scm")))
   (apply (eval categ) name fields))

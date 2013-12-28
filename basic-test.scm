@@ -6,16 +6,15 @@
 
 struct point_s { int x; int y; };
 union point_u { int x; int y; };
-typedef struct { int x; int y; } point_t;
+typedef struct { int x; int y; } point;
 
 typedef struct {
-    struct point_s p;
-    struct point_s q;
-    } segment;
+    point p;
+    point q;
+} segment;
 
 
 /* Utilities for lifecycle debugging. */
-
 
 int is_still_address(unsigned long address) {
     ___rc_header *start, *current;
@@ -69,17 +68,40 @@ c-declare-end
 
 ; Basic struct exposed as opaque type, with primitive accessors and mutators.
 
-(c-type point_t
+(c-type point
   (int x)
   (int y))
 
-(let* ((t (make-point_t))
+(let* ((t (make-point))
        (a (foreign-address t)))
-  (point_t-x-set! t 4)
-  (point_t-y-set! t 5)
-  (test-equal (list (point_t-x t) (point_t-y t)) '(4 5))
+  (point-x-set! t 4)
+  (point-y-set! t 5)
+  (test-equal (list (point-x t) (point-y t)) '(4 5))
   (test-false (address-dead? a))
   (set! t #f)
+  (##gc)
+  (test-true (address-dead? a)))
+
+; Basic contained structure.
+
+(c-type segment
+  (type point p)
+  (type point q))
+
+(let* ((s (make-segment))
+       (a (foreign-address s))
+       (p (segment-p s))
+       (other-point (make-point))
+       (oa (foreign-address other-point)))
+  (point-x-set! p 0)
+  (point-x-set! other-point 6)
+  (segment-p-set! s other-point)
+  (test-equal (point-x p) 6 "copy by value")
+  (test-false (address-dead? a))
+  (set! s #f)
+  (##gc)
+  (test-false (address-dead? a) "dependent reference keeps root alive")
+  (set! p #f)
   (##gc)
   (test-true (address-dead? a)))
 

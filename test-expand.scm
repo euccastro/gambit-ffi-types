@@ -41,7 +41,7 @@
     '(define (point-x parent)
        (let ((ret
                ((c-lambda (point) dependent-coord
-                "___result_voidstar = &((struct point*)___arg1_voidstar)->x;")
+                "___result = &((struct point*)___arg1_voidstar)->x;")
                 parent)))
          (ffi-types-lib#register-foreign-dependency! ret parent)
          ret)))
@@ -81,7 +81,7 @@
        (define (salad-dressing parent)
          (let ((ret
                  ((c-lambda (salad) dependent-dressing
-                            "___result_voidstar = &((struct salad*)___arg1_voidstar)->dressing;")
+                            "___result = &((struct salad*)___arg1_voidstar)->dressing;")
                   parent)))
            (ffi-types-lib#register-foreign-dependency! ret parent)
            ret))
@@ -112,7 +112,7 @@
        (define (test-y parent)
          (let ((ret
                  ((c-lambda (test) dependent-something_else
-                    "___result_voidstar = &((test*)___arg1_voidstar)->y;")
+                    "___result = &((test*)___arg1_voidstar)->y;")
                   parent)))
            (ffi-types-lib#register-foreign-dependency! ret parent)
            ret))

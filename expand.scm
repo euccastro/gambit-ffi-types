@@ -41,7 +41,7 @@
      (let ((ret
              ((c-lambda (,name) ,(dependent-name attr-type)
                 ,(string-append*
-                    "___result_voidstar = &((" (c-pointer-tag categ name)
+                    "___result = &((" (c-pointer-tag categ name)
                     ")___arg1_voidstar)->" attr-name ";"))
               parent)))
        ; XXX: enable ##register-foreign-dependency! in production, for

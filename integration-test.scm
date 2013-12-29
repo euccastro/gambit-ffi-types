@@ -74,36 +74,65 @@ c-declare-end
 
 ; BEGIN TESTS
 
-; Basic struct with primitive accessors and mutators.
-
 (c-struct point_s
   (int x)
   (int y))
-
-(let* ((s (make-point_s))
-       (a (foreign-address s)))
-    (test-equal (foreign-tags s)
-                '(|struct point_s| |struct point_s*|)
-                "struct tags")
-    (test-equal (ffi-types-impl#scheme-object-size-in-words s)
-                ffi-types-impl#dependent-foreign-size)
-    (point_s-x-set! s 1)
-    (point_s-y-set! s 2)
-    (test-equal (list (point_s-x s) (point_s-y s)) '(1 2))
-    (test-false (address-dead? a))
-    (set! s #f)
-    (##gc)
-    (test-true (address-dead? a)))
-
-
-; Basic union with primitive accessors and mutators.
 
 (c-union point_u
   (int x)
   (int y))
 
+(c-type point
+  (int x)
+  (int y))
+
+(c-type segment
+  (type point p)
+  (type point q))
+
+(c-type segment_pair
+  (type segment s)
+  (type segment r))
+
+(c-type pointer_segment
+  (pointer type point p)
+  (pointer type point q))
+
+
+; Basic struct with primitive accessors and mutators.
+
+(let* ((s (make-point_s))
+       (a (foreign-address s)))
+  (test-true (point_s? s))
+  (test-false (point_u? s))
+  (test-false (point? s))
+  (test-false (segment? s))
+  (test-false (segment_pair? s))
+  (test-false (pointer_segment? s))
+  (test-equal (foreign-tags s)
+              '(|struct point_s| |struct point_s*|)
+              "struct tags")
+  (test-equal (ffi-types-impl#scheme-object-size-in-words s)
+              ffi-types-impl#dependent-foreign-size)
+  (point_s-x-set! s 1)
+  (point_s-y-set! s 2)
+  (test-equal (list (point_s-x s) (point_s-y s)) '(1 2))
+  (test-false (address-dead? a))
+  (set! s #f)
+  (##gc)
+  (test-true (address-dead? a)))
+
+
+; Basic union with primitive accessors and mutators.
+
 (let* ((u (make-point_u))
        (a (foreign-address u)))
+  (test-false (point_s? u))
+  (test-true (point_u? u))
+  (test-false (point? u))
+  (test-false (segment? u))
+  (test-false (segment_pair? u))
+  (test-false (pointer_segment? u))
   (test-equal (foreign-tags u)
               '(|union point_u| |union point_u*|)
               "union tags")
@@ -117,12 +146,14 @@ c-declare-end
 
 ; Basic struct exposed as opaque type, with primitive accessors and mutators.
 
-(c-type point
-  (int x)
-  (int y))
-
 (let* ((t (make-point))
        (a (foreign-address t)))
+  (test-false (point_s? t))
+  (test-false (point_u? t))
+  (test-true (point? t))
+  (test-false (segment? t))
+  (test-false (segment_pair? t))
+  (test-false (pointer_segment? t))
   (test-equal (foreign-tags t) '(|point| |point*|) "type tags")
   (point-x-set! t 4)
   (point-y-set! t 5)
@@ -135,15 +166,18 @@ c-declare-end
 
 ; Basic contained structure.
 
-(c-type segment
-  (type point p)
-  (type point q))
-
 (let* ((s (make-segment))
        (a (foreign-address s))
        (p (segment-p s))
        (other-point (make-point))
        (oa (foreign-address other-point)))
+  (test-false (point_s? s))
+  (test-false (point_u? s))
+  (test-false (point? s))
+  (test-true (segment? s))
+  (test-false (segment_pair? s))
+  (test-false (pointer_segment? s))
+  (test-true (point? p))
   (test-equal (foreign-tags p) '(|point| |point*|) "dependent accessor tags")
   (point-x-set! p 0)
   (point-x-set! other-point 6)
@@ -163,12 +197,7 @@ c-declare-end
 
 ; Root with two direct dependents and one transitive one.  The only new thing
 ; to test here is lifecycle management.
-
-(c-type segment_pair
-  (type segment s)
-  (type segment r))
-
-
+;
 ; No matter in what order we release the direct or transitive references,
 ; only the last deletion gets the root reclaimed.
 
@@ -271,21 +300,19 @@ c-declare-end
 
 ; Pointer accessors and mutators.
 
-(c-type pointer_segment
-  (pointer type point p)
-  (pointer type point q))
-
 (let ((s (make-pointer_segment))
       (p (make-point))
       (q (make-point)))
   (pointer_segment-p-set! s p)
   (pointer_segment-q-set! s q)
+  ; We use pointers interchangeably with struct/union/type foreigns.
+  (test-true (point? (pointer_segment-p s)))
   (point-x-set! p 8)
   (point-y-set! p 9)
   (point-x-set! q 10)
   (point-y-set! q 11)
-  (test-equal (point-x (pointer_segment-p s)) 8)
-  (test-equal (point-y (pointer_segment-p s)) 9)
-  (test-equal (point-x (pointer_segment-q s)) 10)
-  (test-equal (point-y (pointer_segment-q s)) 11))
+  (test-equal (point-x (pointer_segment-p s)) 8 "assign pointer")
+  (test-equal (point-y (pointer_segment-p s)) 9 "assign pointer")
+  (test-equal (point-x (pointer_segment-q s)) 10 "assign pointer")
+  (test-equal (point-y (pointer_segment-q s)) 11 "assign pointer"))
 

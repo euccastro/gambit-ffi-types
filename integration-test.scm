@@ -15,7 +15,12 @@ typedef struct {
 typedef struct {
     segment s;
     segment r;
-} segment_pair;  /* duh */
+} segment_pair;
+
+typedef struct node {
+   point *p;
+   point *q;
+} pointer_segment;
 
 /* Utility for lifecycle debugging. */
 
@@ -263,4 +268,24 @@ c-declare-end
              "dependent dead after killing both")
   (test-true (address-dead? ra)
              "root dead after killing both"))
+
+; Pointer accessors and mutators.
+
+(c-type pointer_segment
+  (pointer type point p)
+  (pointer type point q))
+
+(let ((s (make-pointer_segment))
+      (p (make-point))
+      (q (make-point)))
+  (pointer_segment-p-set! s p)
+  (pointer_segment-q-set! s q)
+  (point-x-set! p 8)
+  (point-y-set! p 9)
+  (point-x-set! q 10)
+  (point-y-set! q 11)
+  (test-equal (point-x (pointer_segment-p s)) 8)
+  (test-equal (point-y (pointer_segment-p s)) 9)
+  (test-equal (point-x (pointer_segment-q s)) 10)
+  (test-equal (point-y (pointer_segment-q s)) 11))
 

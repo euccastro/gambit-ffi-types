@@ -59,16 +59,32 @@
     (dependent-accessor 'struct 'point 'union 'coord 'x)
    '(define (point-x parent)
       (let ((ret ((c-lambda (point) dependent-coord
-                    "___result = &((struct point*)___arg1_voidstar)->x;") parent)))
+                    "___result = &((struct point*)___arg1_voidstar)->x;")
+                  parent)))
         (ffi-types-impl#foreign-tags-set! ret ffi-types-impl#union-coord-tags)
         (ffi-types-impl#register-foreign-dependency! ret parent)
         ret)))
 
   (test-equal
-    (primitive-mutator 'struct 'point 'int 'x)
+    (pointer-accessor 'struct 'point 'pointer 'union 'coord 'x)
+    '(define (point-x parent)
+       (let ((ret ((c-lambda (point) dependent-coord
+                     "___result = ((struct point*)___arg1_voidstar)->x;")
+                   parent)))
+         (ffi-types-impl#foreign-tags-set! ret ffi-types-impl#union-coord-tags)
+         ret)))
+
+  (test-equal
+    (pointer-mutator 'struct 'point 'pointer 'union 'coord 'x)
     '(define point-x-set!
-       (c-lambda (point int) void
-         "((struct point*)___arg1_voidstar)->x = ___arg2;")))
+       (c-lambda (point coord) void
+         "((struct point*)___arg1_voidstar)->x = (union coord*)___arg2_voidstar;"))
+
+    (test-equal
+      (primitive-mutator 'struct 'point 'int 'x)
+      '(define point-x-set!
+         (c-lambda (point int) void
+                   "((struct point*)___arg1_voidstar)->x = ___arg2;"))))
 
   (test-equal
     (dependent-mutator 'struct 'point 'union 'coord 'x)

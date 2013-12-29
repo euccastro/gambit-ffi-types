@@ -12,15 +12,18 @@
      "SCMOBJ_TO_DEPPOINTER"
      #f))
 
-(define (release-function categ name)
-  `(define ,(release-function-name categ name)
-     ((c-lambda (scheme-object) (pointer void)
-        "___SCMOBJ ret = ___FIELD(___arg1,___FOREIGN_RELEASE_FN);
-        ___result_voidstar = (void*)ret;")
-      ((c-lambda () ,name
-         ,(string-append
-           "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
-           (c-tag categ name) "));"))))))
+(define (tags-and-release-function categ name)
+  `(begin
+     (define ,(tags-name categ name) #f)
+     (define ,(release-function-name categ name) #f)
+     (let ((prototype
+             ((c-lambda () ,name
+                ,(string-append "___ASSIGN_NEW(___result_voidstar,"
+                                (c-tag categ name) ");")))))
+       (set! ,(tags-name categ name)
+         (foreign-tags prototype))
+       (set! ,(release-function-name categ name)
+         (ffi-types-impl#foreign-release-function prototype)))))
 
 (define (predicate categ name)
   `(define (,(symbol-append name "?") x)
@@ -32,16 +35,15 @@
 
 (define (allocator categ name)
   `(define (,(symbol-append "make-" name))
-     ; Construct an object of the raw type, to get a release function.
      (let ((ret ((c-lambda () ,(dependent-name name)
                    ,(string-append
-                      "___result = ___EXT(___alloc_rc)(sizeof("
-                      (c-tag categ name) "));")))))
-       ((c-lambda (scheme-object (pointer void)) void
-          "___FIELD(___arg1,___FOREIGN_RELEASE_FN) = ___CAST(___SCMOBJ,___arg2_voidstar);")
-        ret
-        ,(release-function-name categ name))
-       ; XXX add tags.
+                      "___ASSIGN_NEW(___result," (c-tag categ name) ");")))))
+       (ffi-types-impl#foreign-tags-set!
+         ret
+         ,(tags-name categ name))
+       (ffi-types-impl#foreign-release-function-set!
+         ret
+         ,(release-function-name categ name))
        ret)))
 
 (define (primitive-accessor categ name attr-type attr-name)
@@ -61,10 +63,8 @@
                     "___result = &((" (c-pointer-tag categ name)
                     ")___arg1_voidstar)->" attr-name ";"))
               parent)))
-       ; XXX: add tags.
-       ; XXX: enable ##register-foreign-dependency! in production, for
-       ;      performance.
-       (ffi-types#register-foreign-dependency! ret parent)
+       (ffi-types-impl#foreign-tags-set! ret ,(tags-name attr-categ attr-type))
+       (ffi-types-impl#register-foreign-dependency! ret parent)
        ret)))
 
 (define (mutator name attr-type attr-name c-lambda-body)
@@ -83,14 +83,6 @@
     (string-append*
       "((" (c-pointer-tag categ name) ")___arg1_voidstar)->" attr-name
       " = *(" (c-pointer-tag attr-categ attr-type) ")___arg2_voidstar;")))
-
-(define (pointer-cast categ name)
-  `(define (,(symbol-append name "-pointer") x)
-     (let ((ret ((c-lambda (,name) (pointer ,name)
-                    "___result_voidstar = ___arg1_voidstar;")
-                 x)))
-       (ffi#link! x ret)
-       ret)))
 
 (define (struct . args)
   (apply categ-type 'struct args))
@@ -114,11 +106,12 @@
     (map (lambda (fn) (fn categ name))
          (list root-type
                dependent-type
-               release-function
+               tags-and-release-function
                predicate
                allocator))
     (map-fields primitive-accessor dependent-accessor)
     (map-fields primitive-mutator dependent-mutator)))
+
 
 ; Internal utility.
 
@@ -168,3 +161,6 @@
 
 (define (release-function-name categ name)
   (symbol-append "ffi-types-impl#" categ "-" name "-release-fn"))
+
+(define (tags-name categ name)
+  (symbol-append "ffi-types-impl#" categ "-" name "-tags"))

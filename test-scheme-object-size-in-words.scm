@@ -10,5 +10,7 @@
 (define dp ((c-lambda (point*) dependent-point*
               "___result = ___arg1_voidstar;") p))
 
-(test-equal (##scheme-object-size-in-words dp) ##dependent-foreign-size)
-(test-equal (##scheme-object-size-in-words p) (- ##dependent-foreign-size 1))
+(test-equal (ffi-types-impl#scheme-object-size-in-words dp)
+            ffi-types-impl#dependent-foreign-size)
+(test-equal (ffi-types-impl#scheme-object-size-in-words p)
+            (- ffi-types-impl#dependent-foreign-size 1))

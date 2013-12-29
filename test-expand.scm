@@ -17,12 +17,17 @@
        "SCMOBJ_TO_DEPPOINTER"
        #f))
 
-  (test-equal
-    (release-function 'struct 'point)
-    '(define ffi-types-impl#struct-point-release-fn
-       ((c-lambda (scheme-object) (pointer void)
-          "___SCMOBJ ret = ___FIELD(___arg1,___FOREIGN_RELEASE_FN);\n        ___result_voidstar = (void*)ret;")
-        ((c-lambda () point "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point));")))))
+  (test-equal (tags-and-release-function 'struct 'point)
+    '(begin
+       (define ffi-types-impl#struct-point-tags #f)
+       (define ffi-types-impl#struct-point-release-fn #f)
+       (let ((prototype
+               ((c-lambda () point
+                  "___ASSIGN_NEW(___result_voidstar,struct point);"))))
+         (set! ffi-types-impl#struct-point-tags
+           (foreign-tags prototype))
+         (set! ffi-types-impl#struct-point-release-fn
+           (ffi-types-impl#foreign-release-function prototype)))))
 
   (test-equal
     (predicate 'struct 'point)
@@ -35,11 +40,13 @@
     (allocator 'struct 'point)
     '(define (make-point)
        (let ((ret ((c-lambda () dependent-point
-                     "___result = ___EXT(___alloc_rc)(sizeof(struct point));"))))
-         ((c-lambda (scheme-object (pointer void)) void
-            "___FIELD(___arg1,___FOREIGN_RELEASE_FN) = ___CAST(___SCMOBJ,___arg2_voidstar);")
-          ret
-          ffi-types-impl#struct-point-release-fn)
+                     "___ASSIGN_NEW(___result,struct point);"))))
+         (ffi-types-impl#foreign-tags-set!
+           ret
+           ffi-types-impl#struct-point-tags)
+         (ffi-types-impl#foreign-release-function-set!
+           ret
+           ffi-types-impl#struct-point-release-fn)
          ret)))
 
   (test-equal
@@ -50,13 +57,12 @@
 
   (test-equal
     (dependent-accessor 'struct 'point 'union 'coord 'x)
-    '(define (point-x parent)
-       (let ((ret
-               ((c-lambda (point) dependent-coord
-                "___result = &((struct point*)___arg1_voidstar)->x;")
-                parent)))
-         (ffi-types#register-foreign-dependency! ret parent)
-         ret)))
+   '(define (point-x parent)
+      (let ((ret ((c-lambda (point) dependent-coord
+                    "___result = &((struct point*)___arg1_voidstar)->x;") parent)))
+        (ffi-types-impl#foreign-tags-set! ret ffi-types-impl#union-coord-tags)
+        (ffi-types-impl#register-foreign-dependency! ret parent)
+        ret)))
 
   (test-equal
     (primitive-mutator 'struct 'point 'int 'x)
@@ -68,90 +74,6 @@
     (dependent-mutator 'struct 'point 'union 'coord 'x)
     '(define point-x-set!
        (c-lambda (point coord) void
-         "((struct point*)___arg1_voidstar)->x = *(union coord*)___arg2_voidstar;")))
+         "((struct point*)___arg1_voidstar)->x = *(union coord*)___arg2_voidstar;"))))
 
-  (test-equal
-    (apply struct '(salad (int n_tomatoes) (union dressing dressing)))
-    '(begin
-       (c-define-type salad (struct "salad" (|struct salad| |struct salad*|)))
-       (c-define-type
-         dependent-salad
-         "struct salad*"
-         "DEPPOINTER_TO_SCMOBJ"
-         "SCMOBJ_TO_DEPPOINTER"
-         #f)
-       (define ffi-types-impl#struct-salad-release-fn
-         ((c-lambda (scheme-object) (pointer void)
-            "___SCMOBJ ret = ___FIELD(___arg1,___FOREIGN_RELEASE_FN);\n        ___result_voidstar = (void*)ret;")
-          ((c-lambda () salad
-             "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct salad));"))))
-       (define (salad? x)
-         (and (foreign? x)
-              (memq (car (foreign-tags x)) '(|struct salad| |struct salad*|))
-              #t))
-       (define (make-salad)
-         (let ((ret ((c-lambda () dependent-salad
-                       "___result = ___EXT(___alloc_rc)(sizeof(struct salad));"))))
-           ((c-lambda (scheme-object (pointer void)) void
-              "___FIELD(___arg1,___FOREIGN_RELEASE_FN) = ___CAST(___SCMOBJ,___arg2_voidstar);")
-            ret
-            ffi-types-impl#struct-salad-release-fn)
-           ret))
-       (define salad-n_tomatoes
-         (c-lambda (salad) int
-           "___result = ((struct salad*)___arg1_voidstar)->n_tomatoes;"))
-       (define (salad-dressing parent)
-         (let ((ret
-                 ((c-lambda (salad) dependent-dressing
-                            "___result = &((struct salad*)___arg1_voidstar)->dressing;")
-                  parent)))
-           (ffi-types#register-foreign-dependency! ret parent)
-           ret))
-       (define salad-n_tomatoes-set!
-         (c-lambda (salad int) void
-           "((struct salad*)___arg1_voidstar)->n_tomatoes = ___arg2;"))
-       (define salad-dressing-set!
-         (c-lambda (salad dressing) void
-           "((struct salad*)___arg1_voidstar)->dressing = *(union dressing*)___arg2_voidstar;"))))
-
-  ; Opaque types are a bit of a special case, so let's test them separately.
-  (test-equal
-    (apply type '(test (int x) (struct something_else y)))
-    '(begin
-       (c-define-type test (type "test" (test test*)))
-       (c-define-type dependent-test
-         "test*" "DEPPOINTER_TO_SCMOBJ" "SCMOBJ_TO_DEPPOINTER" #f)
-       (define ffi-types-impl#type-test-release-fn
-         ((c-lambda (scheme-object) (pointer void)
-            "___SCMOBJ ret = ___FIELD(___arg1,___FOREIGN_RELEASE_FN);\n        ___result_voidstar = (void*)ret;")
-          ((c-lambda () test
-             "___result_voidstar = ___EXT(___alloc_rc)(sizeof(test));"))))
-       (define (test? x)
-         (and (foreign? x)
-              (memq (car (foreign-tags x)) '(test test*))
-              #t))
-       (define (make-test)
-         (let ((ret ((c-lambda () dependent-test
-                       "___result = ___EXT(___alloc_rc)(sizeof(test));"))))
-           ((c-lambda (scheme-object (pointer void)) void
-              "___FIELD(___arg1,___FOREIGN_RELEASE_FN) = ___CAST(___SCMOBJ,___arg2_voidstar);")
-            ret
-            ffi-types-impl#type-test-release-fn)
-           ret))
-       (define test-x
-         (c-lambda (test) int
-           "___result = ((test*)___arg1_voidstar)->x;"))
-       (define (test-y parent)
-         (let ((ret
-                 ((c-lambda (test) dependent-something_else
-                    "___result = &((test*)___arg1_voidstar)->y;")
-                  parent)))
-           (ffi-types#register-foreign-dependency! ret parent)
-           ret))
-       (define test-x-set!
-         (c-lambda (test int) void
-           "((test*)___arg1_voidstar)->x = ___arg2;"))
-       (define test-y-set!
-         (c-lambda (test something_else) void
-           "((test*)___arg1_voidstar)->y = *(struct something_else*)___arg2_voidstar;")))))
 (test)

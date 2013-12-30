@@ -298,6 +298,7 @@ c-declare-end
   (test-true (address-dead? ra)
              "root dead after killing both"))
 
+
 ; Pointer accessors and mutators.
 
 (let ((s (make-pointer_segment))
@@ -307,6 +308,7 @@ c-declare-end
   (pointer_segment-q-set! s q)
   ; We use pointers interchangeably with struct/union/type foreigns.
   (test-true (point? (pointer_segment-p s)))
+  ; Mutate p and q _after_ assigning them to s, to test pointer semantics.
   (point-x-set! p 8)
   (point-y-set! p 9)
   (point-x-set! q 10)

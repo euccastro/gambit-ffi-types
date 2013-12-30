@@ -1,20 +1,9 @@
 gambit-ffi-types
 ================
 
-WORK IN PROGRESS
+This library provides Scheme-friendly management of C structs, unions, and memory allocated opaque types.
 
-This will become a module that provides Scheme-friendly management of C structs, unions, and memory allocated opaque types.
+The challenge in this is to make child substructures keep the parent alive while they are reachable in Scheme.  This is done by keeping a table with the dependent objects as weak keys and the depended-upon objects as strong values.  In addition, a will is set on the dependent object so it will delete the entry in that table when the dependent has become weakly reachable.  See `ffi-types-lib.scm`.
 
-The challenge in this is to make child substructures keep the parent alive while they are reachable in Scheme.  I plan to use a proposed extension to Gambit, should it be accepted:
+A problem with this approach is that if you keep a weak reference to a dependent object you may be able to access invalid memory through it, perhaps causing memory corruption or segmentation faults.  So if you use this library, or some bindings that use it, **avoid weak references (including wills)** to foreign objects unless you know what you're doing.
 
-https://github.com/feeley/gambit/pull/61
-
-I'm currently experimenting with a Gambit that has that pull request and some additions applied.  The exact commit is:
-
-https://github.com/euccastro/gambit/commit/d7ae3df4d623144bb40206ac0c7c9f168edd6737
-
-Failing that, I'll try tracking the dependencies using a table and release procedures.  A proof of concept of this approach is:
-
-https://github.com/euccastro/refcount-hacks
-
-but that would still require quite a bit of work to make robust and efficient and, perhaps, thread safe.

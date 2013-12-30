@@ -41,9 +41,17 @@ c-declare-end
 ; Helper functions for the tests.
 
 (define (address-dead? a)
+  (declare (not interrupts-enabled))
   (not ((c-lambda (unsigned-long) bool "is_still_address") a)))
 
-(define (many-gcs)
+; First gc executes the dependent's will and clears the depended-upon object
+; from the reference table.  Second one should find the depended-upon object
+; unreachable.
+(define (gc-twice)
+  (##gc)
+  (##gc))
+
+(define (gc-many-times)
   (let loop ((i 100))
     (##gc)
     (if (> i 0) (loop (- i 1)))))
@@ -112,14 +120,12 @@ c-declare-end
   (test-equal (foreign-tags s)
               '(|struct point_s| |struct point_s*|)
               "struct tags")
-  (test-equal (ffi-types-impl#scheme-object-size-in-words s)
-              ffi-types-impl#dependent-foreign-size)
   (point_s-x-set! s 1)
   (point_s-y-set! s 2)
   (test-equal (list (point_s-x s) (point_s-y s)) '(1 2))
   (test-false (address-dead? a))
   (set! s #f)
-  (##gc)
+  (gc-twice)
   (test-true (address-dead? a)))
 
 
@@ -140,7 +146,7 @@ c-declare-end
   (test-equal (point_u-y u) 3)
   (test-false (address-dead? a))
   (set! u #f)
-  (##gc)
+  (gc-twice)
   (test-true (address-dead? a)))
 
 
@@ -160,7 +166,7 @@ c-declare-end
   (test-equal (list (point-x t) (point-y t)) '(4 5))
   (test-false (address-dead? a))
   (set! t #f)
-  (##gc)
+  (gc-twice)
   (test-true (address-dead? a)))
 
 
@@ -188,10 +194,10 @@ c-declare-end
   (test-equal (point-x p) 6 "copy by value")
   (test-false (address-dead? a))
   (set! s #f)
-  (##gc)
+  (gc-twice)
   (test-false (address-dead? a) "dependent reference keeps root alive")
   (set! p #f)
-  (##gc)
+  (gc-twice)
   (test-true (address-dead? a)))
 
 
@@ -212,11 +218,14 @@ c-declare-end
       (vector-set! v 3 (segment-q (vector-ref v 2)))
       (for-each
         (lambda (i)
-          (##gc)
+          (gc-twice)
           (test-false (address-dead? a))
           (vector-set! v i #f))
         permutation)
-      (##gc)
+      ; Since we have a chain of up to 3 references, it can take up to
+      ; 4 collections to break all the links.
+      (gc-twice)
+      (gc-twice)
       (test-true (address-dead? a)))
     (permutations '(0 1 2 3))))
 
@@ -229,7 +238,7 @@ c-declare-end
        (ds (object->serial-number d))
        (ra (foreign-address r))
        (da (foreign-address d)))
-  (ffi-types#register-foreign-dependency! d r)
+  (ffi-types#register-dependency! d r)
   (test-true (table-ref ##serial-number-to-object-table ds #f)
              "dependent foreign alive at beginning")
   (test-true (table-ref ##serial-number-to-object-table rs #f)
@@ -239,7 +248,7 @@ c-declare-end
   (test-false (address-dead? ra)
               "root alive at beginning")
   (set! d #f)
-  (##gc)
+  (gc-twice)
   (test-false (table-ref ##serial-number-to-object-table ds #f)
               "dependent foreign dead after killing d")
   (test-true (table-ref ##serial-number-to-object-table rs #f)
@@ -249,7 +258,7 @@ c-declare-end
   (test-false (address-dead? ra)
               "root alive after killing d")
   (set! r #f)
-  (##gc)
+  (gc-twice)
   (test-false (table-ref ##serial-number-to-object-table ds #f)
               "dependent foreign dead after killing both")
   (test-false (table-ref ##serial-number-to-object-table rs #f)
@@ -268,7 +277,7 @@ c-declare-end
        (ds (object->serial-number d))
        (ra (foreign-address r))
        (da (foreign-address d)))
-  (ffi-types#register-foreign-dependency! d r)
+  (ffi-types#register-dependency! d r)
   (test-true (table-ref ##serial-number-to-object-table ds #f)
              "dependent foreign alive at beginning")
   (test-true (table-ref ##serial-number-to-object-table rs #f)
@@ -278,7 +287,7 @@ c-declare-end
   (test-false (address-dead? ra)
               "root alive at beginning")
   (set! r #f)
-  (##gc)
+  (gc-twice)
   (test-true (table-ref ##serial-number-to-object-table ds #f)
              "dependent foreign alive after killing r")
   (test-true (table-ref ##serial-number-to-object-table rs #f)
@@ -288,7 +297,7 @@ c-declare-end
   (test-false (address-dead? ra)
               "root alive after killing r")
   (set! d #f)
-  (##gc)
+  (gc-twice)
   (test-false (table-ref ##serial-number-to-object-table ds #f)
               "dependent foreign dead after killing both")
   (test-false (table-ref ##serial-number-to-object-table rs #f)

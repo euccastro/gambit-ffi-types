@@ -1,1 +1,1 @@
-(namespace ("ffi-types#" register-foreign-dependency!))
+(namespace ("ffi-types" register-dependency!))

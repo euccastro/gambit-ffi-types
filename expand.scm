@@ -1,29 +1,14 @@
-; XXX hygiene, e.g. what if a field is called `ret`?
+; XXX hygiene?
 
-(define (root-type categ name)
+(define (type-definition categ name)
   `(c-define-type
      ,name
      (,categ ,(symbol->string name) ,(tags categ name))))
 
-(define (dependent-type categ name)
-  `(c-define-type ,(dependent-name name)
-     ,(c-pointer-tag categ name)
-     "DEPPOINTER_TO_SCMOBJ"
-     "SCMOBJ_TO_DEPPOINTER"
-     #f))
-
-(define (tags-and-release-function categ name)
-  `(begin
-     (define ,(tags-name categ name) #f)
-     (define ,(release-function-name categ name) #f)
-     (let ((prototype
-             ((c-lambda () ,name
-                ,(string-append "___ASSIGN_NEW(___result_voidstar,"
-                                (c-tag categ name) ");")))))
-       (set! ,(tags-name categ name)
-         (foreign-tags prototype))
-       (set! ,(release-function-name categ name)
-         (ffi-types-impl#foreign-release-function prototype)))))
+(define (dependent-type-definition categ name)
+  `(c-define-type
+     ,(dependent-name name)
+     (,categ ,(symbol->string name) ,(tags categ name) "___release_pointer")))
 
 (define (predicate categ name)
   `(define (,(symbol-append name "?") x)
@@ -34,17 +19,16 @@
           #t)))
 
 (define (allocator categ name)
-  `(define (,(symbol-append "make-" name))
-     (let ((ret ((c-lambda () ,(dependent-name name)
-                   ,(string-append
-                      "___ASSIGN_NEW(___result," (c-tag categ name) ");")))))
-       (ffi-types-impl#foreign-tags-set!
-         ret
-         ,(tags-name categ name))
-       (ffi-types-impl#foreign-release-function-set!
-         ret
-         ,(release-function-name categ name))
-       ret)))
+  `(define ,(symbol-append "make-" name)
+     (c-lambda () ,name
+       ; Wait until ___ASSIGN_NEW fix is merged:
+       ;
+       ; https://github.com/feeley/gambit/pull/62
+       ;
+       ;,(string-append
+       ;"___ASSIGN_NEW(___result_voidstar," (c-tag categ name) ");"))))
+       ,(string-append "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
+                       (c-tag categ name) "));"))))
 
 (define (primitive-accessor categ name attr-type attr-name)
   `(define ,(accessor-name name attr-name)
@@ -60,15 +44,14 @@
      (let ((ret
              ((c-lambda (,name) ,(dependent-name attr-type)
                 ,(string-append*
-                    "___result = "
+                    "___result_voidstar = "
                     (if pointer? "" "&")
                     "((" (c-pointer-tag categ name)
                     ")___arg1_voidstar)->" attr-name ";"))
               parent)))
-       (ffi-types-impl#foreign-tags-set! ret ,(tags-name attr-categ attr-type))
        ,@(if pointer?
            '()
-           '((ffi-types-impl#register-foreign-dependency! ret parent)))
+           '((ffi-types#register-dependency! ret parent)))
        ret)))
 
 (define (dependent-accessor categ name attr-categ attr-type attr-name)
@@ -126,9 +109,8 @@
   (append
     '(begin)
     (map (lambda (fn) (fn categ name))
-         (list root-type
-               dependent-type
-               tags-and-release-function
+         (list type-definition
+               dependent-type-definition
                predicate
                allocator))
     (map-fields primitive-accessor dependent-accessor pointer-accessor)

@@ -51,11 +51,6 @@ c-declare-end
   (##gc)
   (##gc))
 
-(define (gc-many-times)
-  (let loop ((i 100))
-    (##gc)
-    (if (> i 0) (loop (- i 1)))))
-
 (define (remove l e)
   (cond
     ((null? l) '())

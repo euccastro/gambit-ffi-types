@@ -152,22 +152,5 @@
 (define (c-pointer-tag-symbol categ name)
   (string->symbol (c-pointer-tag categ name)))
 
-(define (string-upcase s)
-  (list->string (map char-upcase (string->list s))))
-
-(define (symbol-upcase s)
-  (string->symbol (string-upcase (symbol->string s))))
-
-(define (*-upcase s)
-  (cond ((string? s) (string-upcase s))
-        ((symbol? s) (symbol-upcase s))
-        (else (error (list "Unsupported type: " s)))))
-
-(define (release-function-name categ name)
-  (symbol-append "ffi-types-impl#" categ "-" name "-release-fn"))
-
-(define (tags-name categ name)
-  (symbol-append "ffi-types-impl#" categ "-" name "-tags"))
-
 (define (accessor-name name attr-name)
   (symbol-append name "-" attr-name))

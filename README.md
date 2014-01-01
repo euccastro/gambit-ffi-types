@@ -165,7 +165,7 @@ The following rules apply for lifecycle management of objects not created with t
 
 where
 - `scheme-object` is the object you want to be able to use as a.
-- `incred-thunk!` is a procedure with no arguments that will be called when a new dependency is registered on your object, and
+- `incref-thunk!` is a procedure with no arguments that will be called when a new dependency is registered on your object, and
 - `decref-thunk!` is a procedure with no arguments that will be called when a reference to your object has been cleared by the garbage collector.
 
 For the common case of a C object allocated through `___alloc_rc`, you can use the following shortcut:

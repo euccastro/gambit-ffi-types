@@ -19,16 +19,13 @@
           #t)))
 
 (define (allocator categ name)
-  `(define ,(symbol-append "make-" name)
-     (c-lambda () ,name
-       ; Wait until ___ASSIGN_NEW fix is merged:
-       ;
-       ; https://github.com/feeley/gambit/pull/62
-       ;
-       ;,(string-append
-       ;"___ASSIGN_NEW(___result_voidstar," (c-tag categ name) ");"))))
-       ,(string-append "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
-                       (c-tag categ name) "));"))))
+  `(define (,(symbol-append "make-" name))
+     (let ((ret ((c-lambda () ,name
+                   ,(string-append
+                      "___result_voidstar = ___EXT(___alloc_rc)(sizeof("
+                      (c-tag categ name) "));")))))
+       (ffi-types#register-rc-root! ret)
+       ret)))
 
 (define (primitive-accessor categ name attr-type attr-name)
   `(define ,(accessor-name name attr-name)

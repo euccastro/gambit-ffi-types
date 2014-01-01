@@ -21,9 +21,11 @@
 
   (test-equal
     (allocator 'struct 'point)
-    '(define make-point
-       (c-lambda () point
-         "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point));")))
+    '(define (make-point)
+       (let ((ret ((c-lambda () point
+                     "___result_voidstar = ___EXT(___alloc_rc)(sizeof(struct point));"))))
+         (ffi-types#register-rc-root! ret)
+         ret)))
 
   (test-equal
     (primitive-accessor 'struct 'point 'int 'x)

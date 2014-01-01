@@ -1,1 +1,4 @@
-(##namespace ("ffi-types#" register-dependency!))
+(##namespace ("ffi-types#"
+              register-dependency!
+              register-root!
+              register-rc-root!))

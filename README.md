@@ -100,6 +100,84 @@ Where
 
 See [`integration-test.scm`](https://github.com/euccastro/gambit-ffi-types/blob/master/integration-test.scm) (after the `; BEGIN TESTS` comment) for usage examples.
 
+### Custom lifecycle dependencies
+
+If some object `d` in your program depends logically on another object `r`, such that you don't want `r` to be reclaimed as long as you hold a reference to `d`, you can say [1]
+
+   (ffi-types#register-dependency! d r)
+
+and the library will take care of `r`'s lifecycle.
+
+Note that you don't need to do this for non-pointer fields in structures that you create using this library.  Dependencies only need to be specified manually when they involve pointer fields, or objects not created with this library.
+
+#### Depending on arbitrary objects
+
+While any Scheme memory-allocated object will do fine as a dependent object (`d` above), some more work is required if you want `r` to be anything but an object obtained with this library.  Imagine, for example, that C library `foo` has a function `get_foo()` that gives you a `struct foo` that you are required to clean up, when you're done with it, by calling `cleanup_foo`.  You can use `struct foo` seamlessly with the objects you create yourself using `gambit-ffi-types`, like so:
+
+    (c-struct foo
+      (union bar)
+      (int baz))
+
+    (c-union bar
+      (unsigned-long ul)
+      (char c))
+
+    (define get_foo (c-lambda () foo "get_foo"))
+    (define cleanup_foo (c-lambda (foo) void "cleanup_foo"))
+
+    (define foo (get_foo))
+
+    (let ((refcount 0))
+       (ffi-types#register-root!
+          foo
+          (lambda ()
+            (set! refcount (+ refcount 1)))
+          (lambda ()
+            (set! refcount (- refcount 1))
+            (if (= refcount 0)
+              (cleanup_foo)))))
+
+    ; And now use foo just as if you had created it with gambit-ffi-types.
+    
+    (define bar (foo-bar foo))
+    (bar-c-set! (foo-bar foo) #\x)
+    
+    ; Forget foo.
+    (set! foo #f)
+    (##gc)
+
+    (bar-c bar)  ; -> #\x, not garbage or segfault
+
+    ; Forget bar; the foo object is now unreachable.
+    (set! bar #f)
+
+    (##gc)
+    (##gc)
+    ; cleanup_foo has been called.
+
+The following rules apply for lifecycle management of objects not created with this library:
+
+1. If you have registered `r` to depend on any object created with this library, then you can make any other object depend on `r`.
+
+2. Any object can be registered as a _root dependency_ if you register it with the following call.
+
+    (ffi-types#register-root! scheme-object incref-thunk! decref-thunk!)
+
+where
+- `scheme-object` is the object you want to be able to use as a.
+- `incred-thunk!` is a procedure with no arguments that will be called when a new dependency is registered on your object, and
+- `decref-thunk!` is a procedure with no arguments that will be called when a reference to your object has been cleared by the garbage collector.
+
+For the common case of a C object allocated through `___alloc_rc`, you can use the following shortcut:
+    (ffi-types#register-rc-root! object)
+
+And the object will be released when its refcount reaches 0.
+
 ## Implementation
 
-The challenge in this is to make child substructures keep the parent alive while they are reachable in Scheme.  This is done by keeping an assoc list mapping the serial numbers (as in `object->serial-number`) of the dependent objects as 'keys' and the depended-upon objects as 'values'.  The table is scanned on every garbage collection, and the entries for which the serial number is no longer in `##serial-number-to-object-table` are discarded.  See `ffi-types-lib.scm`.
+The challenge in this is to make child substructures keep the parent alive while they are reachable in Scheme.  This is done by keeping a mapping with serial numbers (as in `object->serial-number`) of the dependent objects as the key, and as the value a list of pairs of thunks, each of which manages the lifecycle of one ultimately depended-upon object (i.e., a 'root').  The table is scanned after every garbage collection, and the entries for which the serial number is no longer in `##serial-number-to-object-table` are discarded.  Reference counting is used, instead of just keeping references to the roots, to prevent cycles of dependencies from causing leakage.  See `ffi-types-lib.scm`.
+
+
+## Notes
+
+[1] In this and subsequent examples, you can omit the `ffi-types#` part if you `(include "ffi-types#.scm")`.

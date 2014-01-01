@@ -157,7 +157,7 @@ While any Scheme memory-allocated object will do fine as a dependent object (`d`
 
 The following rules apply for lifecycle management of objects not created with this library:
 
-1. If you have registered `r` to depend on any object created with this library, then you can make any other object depend on `r`.
+1. If you have registered `o` to depend on any object created with this library, then you can make any other object depend on `o`.
 
 2. Any object can be registered as a _root dependency_ if you register it with the following call.
 

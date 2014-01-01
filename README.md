@@ -98,7 +98,7 @@ Where
 - _type-name_ is the name of the struct, union or type if the field is composite, or the name of the type (as described in the Gambit manual; for example, `char-string` if the field is a string) if the field is primitive.
 - _field-name_ is the name of the field, exactly as declared in the C source file or `c-define` form.
 
-See (`integration-test.scm`)[https://github.com/euccastro/gambit-ffi-types/blob/master/integration-test.scm] (after the `; BEGIN TESTS` comment) for usage examples.
+See [`integration-test.scm`](https://github.com/euccastro/gambit-ffi-types/blob/master/integration-test.scm) (after the `; BEGIN TESTS` comment) for usage examples.
 
 ## Implementation
 

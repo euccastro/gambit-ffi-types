@@ -164,7 +164,7 @@ The following rules apply for lifecycle management of objects not created with t
     (ffi-types#register-root! scheme-object incref-thunk! decref-thunk!)
 
 where
-- `scheme-object` is the object you want to be able to use as a.
+- `scheme-object` is the object you want to be able to use as a dependency root.
 - `incref-thunk!` is a procedure with no arguments that will be called when a new dependency is registered on your object, and
 - `decref-thunk!` is a procedure with no arguments that will be called when a reference to your object has been cleared by the garbage collector.
 

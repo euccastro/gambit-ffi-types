@@ -1,9 +1,12 @@
-(define (test-equal actual expected #!optional comment)
+(define (test-equal actual expected . comments)
   (if (not (equal? actual expected))
     (begin
       (newline)
-      (if comment
-        (println "FAILED: " comment))
+      (if comments
+        (begin
+          (print "FAILED: ")
+          (write comments)
+          (newline)))
       (println "expected:")
       (write expected)
       (newline)

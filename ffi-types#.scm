@@ -1,1 +1,1 @@
-(namespace ("ffi-types" register-dependency!))
+(##namespace ("ffi-types#" register-dependency!))
